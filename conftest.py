@@ -1,14 +1,18 @@
 import pytest
 import requests
+import os
+import pathlib
 
+from datetime import datetime
 from contextlib import contextmanager
 from clickpecker.helpers.device_wrappers import DeviceWrapper
 from clickpecker.models.device import Device
 from clickpecker.api import BasicAPI
+from clickpecker.configurations import default_config
 
 
 @pytest.fixture
-def testing_api():
+def testing_api(output_dir, request):
     def acquire_device(device_specs, manager_url):
         acquire_url = "{}/acquire".format(manager_url)
         request_body = {"filters": device_specs}
@@ -31,15 +35,52 @@ def testing_api():
         if r.status_code != 200:
             raise ConnectionError(r.text)
 
+    def create_file_path(base_name, request, output_dir):
+        test_case_name = request.node.name
+        file_name = "{}_{}_{}".format(base_name, test_case_name,
+                                      datetime.now())
+        file_path = output_dir / file_name
+        return file_path
+
+    def save_screenshots_to_pdf(device_wrapper):
+        # Obtain and prepare device's screenshots
+        images = list(device_wrapper.screen_history)
+
+        if len(images) == 0:
+            # TODO: replace by logger
+            print("! Screen history is empty !")
+            return
+
+        for i, img in enumerate(images):
+            if img.mode != "RGB":
+                images[i] = img.convert("RGB")
+        img = images[0]
+        path = create_file_path("screenshots", request, output_dir)
+        # TODO: replace by logger
+        print("Saving {} screenshots into {}".format(len(images), path))
+        img.save(path, "PDF", save_all=True, append_images=images[1:])
+
     @contextmanager
-    def configure_api(device_specs, manager_url, device_url="",
-                      resources=None):
+    def configure_api(device_specs,
+                      manager_url,
+                      device_url="",
+                      resources=None,
+                      default_config=default_config):
         device = acquire_device(device_specs, manager_url)
         device_wrapper = configure_wrapper(device, device_url)
-        api = BasicAPI(device_wrapper, resources)
+        api = BasicAPI(device_wrapper, default_config, resources)
         try:
             yield api
         finally:
             release_device(device, manager_url)
+            save_screenshots_to_pdf(device_wrapper)
 
     return configure_api
+
+
+@pytest.fixture
+def output_dir(request):
+    rootdir = request.config.rootdir
+    output_dir = pathlib.Path(rootdir) / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return output_dir
