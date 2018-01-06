@@ -37,7 +37,6 @@ def test_demo(testing_api, android_version):
         api.tap("run the scan")
         # Эта команда вырежет участок из нижней половины скриншота
         # Чтобы распознать злосчастную кнопку ОК
-        # assert False
         api.tap(
             "OK",
             config=dict(
