@@ -11,6 +11,11 @@ from clickpecker.api import BasicAPI
 from clickpecker.configurations import default_config
 
 
+# =============== Pytest hooks ===============
+def pytest_addoption(parser):
+    parser.addoption("--output-dir", default=None)
+
+
 def acquire_device(device_specs, manager_url):
     acquire_url = f"{manager_url!s}/acquire"
     request_body = {"filters": device_specs}
@@ -88,10 +93,14 @@ def save_anr_traces(api, output_dir):
 
 @pytest.fixture
 def output_dir(request):
-    rootdir = request.config.rootdir
-    output_dir = pathlib.Path(rootdir) / "output"
-    output_dir.mkdir(parents=True, exist_ok=True)
-    return output_dir
+    outdir = request.config.getoption("--output-dir")
+    if outdir is None:
+        rootdir = request.config.rootdir
+        outdir = pathlib.Path(rootdir) / "output"
+    else:
+        outdir = pathlib.Path(outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+    return outdir
 
 
 def prepare_device(api):
