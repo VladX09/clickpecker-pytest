@@ -12,7 +12,7 @@ from clickpecker.configurations import default_config
 
 
 def acquire_device(device_specs, manager_url):
-    acquire_url = "{}/acquire".format(manager_url)
+    acquire_url = f"{manager_url!s}/acquire"
     request_body = {"filters": device_specs}
     r = requests.post(acquire_url, json=request_body)
     if r.status_code == 200:
@@ -29,7 +29,7 @@ def configure_wrapper(device_model, device_url):
 
 
 def release_device(device, manager_url):
-    release_url = "{}/release".format(manager_url)
+    release_url = f"{manager_url!s}/release"
     request_body = {"filters": {"adb_id": device.adb_id}}
     r = requests.post(release_url, json=request_body)
     if r.status_code != 200:
@@ -59,21 +59,31 @@ def save_screenshots_to_pdf(device_wrapper, request, output_dir):
     img = images[0]
     path = create_file_path("screenshots", "pdf", request, output_dir)
     # TODO: replace by logger
-    print("Saving {} screenshots into {}".format(len(images), path))
+    print(f"Saving {len(images)} screenshots into {path!s}")
     img.save(path, "PDF", save_all=True, append_images=images[1:])
 
 
-def save_device_logs(api,
-                     request,
-                     output_dir,
-                     logcat_options="",
-                     logcat_filters=""):
+def save_logcat(api, request, output_dir, logcat_options="",
+                logcat_filters=""):
     logcat_output_file = create_file_path("logcat", "txt", request, output_dir)
     logcat_device_file = f"/sdcard/{logcat_output_file.name!s}"
     api.adb(
         f"logcat -d {logcat_options!s} -f {logcat_device_file} {logcat_filters!s}"
     )
     api.adb(f"pull {logcat_device_file} {logcat_output_file!s}")
+
+
+def save_stack_traces(api, output_dir):
+    traces_mask = "/sdcard/stack_trace*.txt"
+    traces_folder = "/sdcard/stack_traces"
+    api.adb(f"shell mkdir {traces_folder}")
+    api.adb(f"shell mv {traces_mask} {traces_folder}")
+    api.adb(f"pull {traces_folder} {output_dir!s}")
+
+
+def save_anr_traces(api, output_dir):
+    anr_traces_folder = "/data/anr"
+    api.adb(f"pull {anr_traces_folder} {output_dir!s}")
 
 
 @pytest.fixture
@@ -87,10 +97,16 @@ def output_dir(request):
 def prepare_device(api):
     api.adb("logcat -c")
     api.adb("shell rm /sdcard/logcat*.txt")
+    api.adb("shell rm /sdcard/stack_trace*.txt")
+
+    # TODO: Check if necessary and possible
+    # api.adb("shell rm /data/anr/traces.txt")
 
 
 def collect_device_logs(api, request, output_dir):
-    save_device_logs(api, request, output_dir, logcat_options="-v time")
+    save_logcat(api, request, output_dir, logcat_options="-v time")
+    save_stack_traces(api, output_dir)
+    save_anr_traces(api, output_dir)
     save_screenshots_to_pdf(api.device_wrapper, request, output_dir)
 
 
