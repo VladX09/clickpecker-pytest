@@ -51,7 +51,8 @@ def create_file_path(base_name, ext, request, output_dir):
 
 def save_screenshots_to_pdf(device_wrapper, request, output_dir):
     # Obtain and prepare device's screenshots
-    images = list(device_wrapper.screen_history)
+    # TODO: Add saving tags
+    images = list(device_wrapper.screen_history.values())
 
     if len(images) == 0:
         # TODO: replace by logger
@@ -134,6 +135,7 @@ def testing_api(request, output_dir):
             prepare_device(api)
             yield api
         finally:
+            api.save_current_screen("LAST")
             collect_device_logs(api, request, output_dir)
             release_device(device, manager_url)
 
