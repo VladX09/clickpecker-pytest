@@ -4,7 +4,7 @@ import os
 import pathlib
 
 from datetime import datetime
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 from clickpecker.helpers.device_wrappers import DeviceWrapper
 from clickpecker.models.device import Device
 from clickpecker.api import BasicAPI
@@ -16,6 +16,7 @@ def pytest_addoption(parser):
     parser.addoption("--output-dir", default=None)
 
 
+# ============= Service functions ============
 def acquire_device(device_specs, manager_url):
     acquire_url = f"{manager_url!s}/acquire"
     request_body = {"filters": device_specs}
@@ -79,6 +80,39 @@ def save_logcat(api, request, output_dir, logcat_options="",
     api.adb(f"pull {logcat_device_file} {logcat_output_file!s}")
 
 
+# ============== Plugin fixtures =============
+@pytest.fixture
+def output_dir(request):
+    outdir = request.config.getoption("--output-dir")
+    if outdir is None:
+        rootdir = request.config.rootdir
+        outdir = pathlib.Path(rootdir) / "output"
+    else:
+        outdir = pathlib.Path(outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+    return outdir
+
+
+@pytest.fixture
+def testing_api():
+    @contextmanager
+    def configure_basic_api(device_specs,
+                            manager_url,
+                            device_url="",
+                            resources=None,
+                            default_config=default_config):
+        device = acquire_device(device_specs, manager_url)
+        try:
+            device_wrapper = configure_wrapper(device, device_url)
+            api = BasicAPI(device_wrapper, default_config, resources)
+            yield api
+        finally:
+            release_device(device, manager_url)
+
+    return configure_basic_api
+
+
+# =============== User fixtures ==============
 def save_stack_traces(api, output_dir):
     traces_mask = "/sdcard/stack_trace*.txt"
     traces_folder = "/sdcard/stack_traces"
@@ -90,18 +124,6 @@ def save_stack_traces(api, output_dir):
 def save_anr_traces(api, output_dir):
     anr_traces_folder = "/data/anr"
     api.adb(f"pull {anr_traces_folder} {output_dir!s}")
-
-
-@pytest.fixture
-def output_dir(request):
-    outdir = request.config.getoption("--output-dir")
-    if outdir is None:
-        rootdir = request.config.rootdir
-        outdir = pathlib.Path(rootdir) / "output"
-    else:
-        outdir = pathlib.Path(outdir)
-    outdir.mkdir(parents=True, exist_ok=True)
-    return outdir
 
 
 def prepare_device(api):
@@ -121,22 +143,20 @@ def collect_device_logs(api, request, output_dir):
 
 
 @pytest.fixture
-def testing_api(request, output_dir):
+def preconfigured_testing_api(testing_api, request, output_dir):
     @contextmanager
-    def configure_api(device_specs,
-                      manager_url,
-                      device_url="",
-                      resources=None,
-                      default_config=default_config):
-        device = acquire_device(device_specs, manager_url)
-        try:
-            device_wrapper = configure_wrapper(device, device_url)
-            api = BasicAPI(device_wrapper, default_config, resources)
+    def configure_custom_api(device_specs,
+                             manager_url,
+                             device_url="",
+                             resources=None,
+                             default_config=default_config):
+        with ExitStack() as stack:
+            api = stack.enter_context(
+                testing_api(device_specs, manager_url, device_url, resources,
+                            default_config))
             prepare_device(api)
             yield api
-        finally:
             api.save_current_screen("LAST")
             collect_device_logs(api, request, output_dir)
-            release_device(device, manager_url)
 
-    return configure_api
+    return configure_custom_api

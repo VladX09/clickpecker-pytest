@@ -13,12 +13,12 @@ pytestmark = pytest.mark.common
 ssim = check_ssim_similar(0.9, multichannel=True)
 mse = check_mse_similar(50)
 
-
+@pytest.mark.demo
 @pytest.mark.parametrize("android_version", ["4.4.4"])
-def test_demo(testing_api, android_version):
+def test_demo(preconfigured_testing_api, android_version):
     device_spec = {"android_version": android_version}
     device_manager_url = "http://127.0.0.1:5000"
-    with testing_api(device_spec, device_manager_url) as api:
+    with preconfigured_testing_api(device_spec, device_manager_url) as api:
         settings_ico = tm_engine.load_template("res/settings_ico.png")
         api.adb("shell pm clear com.kms.free")
         # Способ запуска приложения без указания Activity
