@@ -131,9 +131,6 @@ def prepare_device(api):
     api.adb("shell rm /sdcard/logcat*.txt")
     api.adb("shell rm /sdcard/stack_trace*.txt")
 
-    # TODO: Check if necessary and possible
-    # api.adb("shell rm /data/anr/traces.txt")
-
 
 def collect_device_logs(api, request, output_dir):
     save_logcat(api, request, output_dir, logcat_options="-v time")
