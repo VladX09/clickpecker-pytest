@@ -50,9 +50,8 @@ def create_file_path(base_name, ext, request, output_dir):
     return file_path
 
 
-def save_screenshots_to_pdf(device_wrapper, request, output_dir):
+def save_screenshots_to_pdf(device_wrapper, request, output_dir=None, path=None):
     # Obtain and prepare device's screenshots
-    # TODO: Add saving tags
     images = list(device_wrapper.screen_history.values())
 
     if len(images) == 0:
@@ -64,11 +63,29 @@ def save_screenshots_to_pdf(device_wrapper, request, output_dir):
         if img.mode != "RGB":
             images[i] = img.convert("RGB")
     img = images[0]
-    path = create_file_path("screenshots", "pdf", request, output_dir)
+    if path is None:
+        path = create_file_path("screenshots", "pdf", request, output_dir)
     # TODO: replace by logger
     print(f"Saving {len(images)} screenshots into {path!s}")
     img.save(path, "PDF", save_all=True, append_images=images[1:])
 
+    return path
+
+def save_screen_history_tags(device_wrapper, request, output_dir=None, path=None):
+    tags = [
+        f"{(i+1)!s} : {tag!s} \n"
+        for i, tag in enumerate(list(device_wrapper.screen_history.keys()))
+    ]
+    print(tags)
+
+    if path is None:
+            path = create_file_path("screenshots", "txt", request, output_dir)
+
+    with open(path.expanduser(), mode="w") as f:
+        for tag in tags:
+            f.write(tag)
+
+    return path
 
 def save_logcat(api, request, output_dir, logcat_options="",
                 logcat_filters=""):
@@ -78,6 +95,8 @@ def save_logcat(api, request, output_dir, logcat_options="",
         f"logcat -d {logcat_options!s} -f {logcat_device_file} {logcat_filters!s}"
     )
     api.adb(f"pull {logcat_device_file} {logcat_output_file!s}")
+
+    return logcat_output_file
 
 
 # ============== Plugin fixtures =============
@@ -136,7 +155,8 @@ def collect_device_logs(api, request, output_dir):
     save_logcat(api, request, output_dir, logcat_options="-v time")
     save_stack_traces(api, output_dir)
     save_anr_traces(api, output_dir)
-    save_screenshots_to_pdf(api.device_wrapper, request, output_dir)
+    pdf_path = save_screenshots_to_pdf(api.device_wrapper, request, output_dir)
+    save_screen_history_tags(api.device_wrapper, request, path=pdf_path.with_suffix(".txt"))
 
 
 @pytest.fixture
@@ -151,9 +171,11 @@ def preconfigured_testing_api(testing_api, request, output_dir):
             api = stack.enter_context(
                 testing_api(device_specs, manager_url, device_url, resources,
                             default_config))
-            prepare_device(api)
-            yield api
-            api.save_current_screen("LAST")
-            collect_device_logs(api, request, output_dir)
+            try:
+                prepare_device(api)
+                yield api
+            finally:
+                api.save_current_screen("LAST")
+                collect_device_logs(api, request, output_dir)
 
     return configure_custom_api
