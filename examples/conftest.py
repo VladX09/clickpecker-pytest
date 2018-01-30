@@ -4,9 +4,6 @@ from contextlib import contextmanager, ExitStack
 from clickpecker.configurations import default_config
 from pytest_clickpecker import utils
 
-pytest_plugins = "pytest_clickpecker.plugin"
-
-
 def save_stack_traces(api, output_dir):
     traces_mask = "/sdcard/stack_trace*.txt"
     traces_folder = "/sdcard/stack_traces"
