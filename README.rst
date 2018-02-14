@@ -8,7 +8,6 @@ Features
 ========
 
 Pytest-Clickpecker allows:
-
     * Acquire and release devices from Device Manager automatically
     * Save device scrrenshot history to PDF (tags are saved separately for now)
     * Save device logcat (using functions from ``utils`` module)
@@ -24,7 +23,7 @@ This extension requires:
 
 To work with Android OS versions use ``packaging`` library
 
-Install plugin from source::
+**Install plugin from source code**::
 
     pip install git+https://github.com/VladX09/clickpecker-pytest.git
 
@@ -34,8 +33,9 @@ Launching tests
 All standard pytest launching methods are available. 
 To specify output directory for screenshot history, logcat, traces, etc. use
 ``--output-dir`` option of ``pytest`` runner. If this option is ommited
-``rootdir/output/`` directory will be created and used.
-(``rootdir/`` is the nearest directory with ``.conftest`` file).
+``<rootdir>/output/`` directory will be created and used.
+(``<rootdir>/`` is the nearest directory with ``.conftest`` file, for more
+information `check this <https://docs.pytest.org/en/latest/customize.html#finding-the-rootdir>`_).
 
 Fixtures
 ========
@@ -43,7 +43,7 @@ Fixtures
 This plugin contains some usefull fixtures.
 
 output_dir
-  Obtain output directory. Returns pathlib.Path object with ``rootdir/output``
+  Obtain output directory. Returns pathlib.Path object with ``<rootdir>/output/``
   or directory specified in ``--output-dir`` pytest parameter.
 
 testing_api
@@ -58,4 +58,4 @@ Utilits
     * Creating files with unique and informative names
     * Saving logcat and screen history
 
-See ``example/`` to understand, how to use and extend this plugin.
+See ``examples/`` to understand, how to use and extend this plugin.
