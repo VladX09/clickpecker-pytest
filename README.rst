@@ -1,7 +1,7 @@
 Pytest Clickpecker plugin
 #########################
 
-This extension allows to organise your test cases and lauch tests wit py.test
+This extension allows you to organise and launch your tests with py.test
 Python library.
 
 Features
