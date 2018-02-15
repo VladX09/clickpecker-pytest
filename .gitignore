@@ -2,3 +2,4 @@
 **/__pycache__/
 .python-version
 **/output/
+pytest_clickpecker.egg-info/
